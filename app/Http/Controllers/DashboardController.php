@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\TeamInvitation;
+use App\Services\DashboardService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -11,28 +11,31 @@ class DashboardController extends Controller
 {
     public function __invoke(Request $request): Response
     {
-        $email = strtolower($request->user()->email);
+        $user = $request->user();
+        $service = new DashboardService();
 
-        $pendingInvitations = TeamInvitation::query()
-            ->with(['inviter', 'team'])
-            ->whereRaw('LOWER(email) = ?', [$email])
-            ->whereNull('accepted_at')
-            ->where(fn ($query) => $query
-                ->whereNull('expires_at')
-                ->orWhere('expires_at', '>=', now()))
-            ->latest()
-            ->get()
-            ->map(fn (TeamInvitation $invitation) => [
-                'code' => $invitation->code,
-                'inviterName' => $invitation->inviter->name,
-                'team' => [
-                    'name' => $invitation->team->name,
-                    'slug' => $invitation->team->slug,
-                ],
-            ]);
+        $dashboardData = match ($user->role?->value) {
+            'super_admin' => $service->getSuperAdminData(),
+            'admin' => $service->getAdminData($user),
+            'supervisor' => $service->getSupervisorData($user),
+            'hod' => $service->getHODData($user),
+            'teacher' => $service->getTeacherData($user),
+            'student' => $service->getStudentData($user),
+            'parent' => $service->getParentData($user),
+            default => [],
+        };
 
         return Inertia::render('dashboard', [
-            'pendingInvitations' => $pendingInvitations,
+            'user' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'role' => $user->role?->value,
+                'user_type' => $user->user_type?->value,
+                'school_id' => $user->school_id,
+                'is_active' => $user->is_active,
+            ],
+            'dashboardData' => $dashboardData,
         ]);
     }
 }

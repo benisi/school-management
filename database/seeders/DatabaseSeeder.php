@@ -15,6 +15,13 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
+        // Seed schools first
+        $this->call(SchoolSeeder::class);
+        $this->call(SuperAdminSeeder::class);
+
+        // Seed sample data (classes, users, enrollments, fees, results, attendance)
+        $this->call(SampleDataSeeder::class);
+
         // User::factory(10)->create();
 
         User::factory()->create([
